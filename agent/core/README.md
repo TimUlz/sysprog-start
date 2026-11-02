@@ -9,6 +9,16 @@
 | [`core_info.c`](core_info.c) | функция `core_get_info`: `getpid`, `sysconf(_SC_NPROCESSORS_ONLN)`, `sysconf(_SC_PAGESIZE)`, `gethostname`; возвращает 0 или код ошибки, ничего не печатает |
 | [`show_info.c`](show_info.c) | программа проверки: вызывает `core_get_info` по адресу структуры и печатает поля |
 
+CORE_API в `core.h` отмечает функцию для экспорта: в Windows это `__declspec(dllexport)`, в macOS и Linux — пусто.
+
+Сборка библиотеки и проверка таблицы экспорта:
+
+```
+$ clang -Wall -Wextra -shared -fPIC -o libsentry_core.dylib core_info.c
+$ nm -gU libsentry_core.dylib
+00000000000003c0 T _core_get_info
+```
+
 Проверка на macOS (Apple Silicon):
 
 ```

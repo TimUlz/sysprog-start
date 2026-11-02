@@ -3,6 +3,12 @@
 
 #include <stdint.h>
 
+#ifdef _WIN32
+#define CORE_API __declspec(dllexport)
+#else
+#define CORE_API
+#endif
+
 #define CORE_HOST_MAX 256
 
 struct core_info {
@@ -12,6 +18,6 @@ struct core_info {
     char host[CORE_HOST_MAX];
 };
 
-int core_get_info(struct core_info *out);
+CORE_API int core_get_info(struct core_info *out);
 
 #endif

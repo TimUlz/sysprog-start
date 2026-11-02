@@ -4,7 +4,7 @@
 
 | Файл | Что в нём |
 |---|---|
-| [`brain.py`](brain.py) | класс `CoreInfo` (272 байта, смещения 0, 8, 12, 16 — как в `core.h`), загрузка `libsentry_core`, функция `get_info()`: код ошибки ядра превращается в `OSError`; при запуске печатает сообщение `agent_started`; функция `send(message, url)` отправляет его POST-запросом в n8n (`urllib.request`), адрес вебхука — аргумент командной строки |
+| [`brain.py`](brain.py) | класс `CoreInfo` (280 байт, смещения 0, 8, 12, 16, 272 — как в `core.h`), загрузка `libsentry_core`, функция `get_info()`: код ошибки ядра превращается в `OSError`; при запуске печатает сообщение `agent_started`; функция `send(message, url)` отправляет его POST-запросом в n8n (`urllib.request`), адрес вебхука — аргумент командной строки |
 
 Запуск (сначала собрать ядро в `agent/core`):
 
@@ -13,12 +13,15 @@ $ python3 brain.py
 {
   "event": "agent_started",
   "os": "darwin",
-  "pid": 49014,
+  "pid": 52602,
   "cpus": 10,
   "page_size": 16384,
-  "host": "MacBook-Air-Tim-2.local"
+  "host": "MacBook-Air-Tim-2.local",
+  "uptime_s": 1234003
 }
 ```
+
+`uptime_s` = 1 234 003 с = 14 дн. 6 ч. 46 мин.; `uptime` в ту же минуту: `up 14 days, 6:47`.
 
 Отправка в n8n (сценарий [`agent/n8n/agent-started.json`](../n8n/agent-started.json): Webhook → Basic LLM Chain с моделью `qwen2.5:3b` в Ollama → Send an Email):
 

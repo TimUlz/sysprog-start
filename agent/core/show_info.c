@@ -14,6 +14,7 @@ int main(void) {
     printf("cpus      %" PRId32 "\n", info.cpus);
     printf("page_size %" PRId32 "\n", info.page_size);
     printf("host      %s\n", info.host);
+    printf("uptime_s  %" PRId64 "\n", info.uptime_s);
     printf("sizeof    %zu\n", sizeof info);
     printf("&info     %p\n", (void *)&info);
     return 0;

@@ -1,0 +1,160 @@
+{
+  "updatedAt": "2026-11-02T11:45:26.000Z",
+  "createdAt": "2026-11-02T11:45:25.602Z",
+  "id": "agentStarted01",
+  "name": "Агент-сторож: запуск",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "7d1c0d2e-agent-0000-0000-000000000001",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent",
+        "options": {}
+      }
+    },
+    {
+      "id": "a1000000-0000-4000-8000-000000000002",
+      "name": "Basic LLM Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Ты помогаешь администратору компьютера. Агент-сторож прислал событие в формате JSON. Объясни по-русски в двух-трёх предложениях, что произошло и нужно ли что-то делать.\n\nСобытие: {{ JSON.stringify($json.body) }}"
+      }
+    },
+    {
+      "id": "a1000000-0000-4000-8000-000000000003",
+      "name": "Ollama Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        260,
+        220
+      ],
+      "parameters": {
+        "model": "qwen2.5:3b",
+        "options": {}
+      },
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollamaLocal01",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "id": "a1000000-0000-4000-8000-000000000004",
+      "name": "Send an Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        620,
+        0
+      ],
+      "webhookId": "7d1c0d2e-mail-0000-0000-000000000004",
+      "parameters": {
+        "fromEmail": "agent@sysprog.local",
+        "toEmail": "admin@sysprog.local",
+        "subject": "=Агент-сторож: {{ $('Webhook').item.json.body.event }} на {{ $('Webhook').item.json.body.host }}",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}\n\nСообщение агента:\n{{ JSON.stringify($('Webhook').item.json.body, null, 2) }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtpMailpit01",
+          "name": "SMTP Mailpit"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Send an Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "086b4891-bdd6-4795-9016-808efbd960aa",
+  "activeVersionId": "086b4891-bdd6-4795-9016-808efbd960aa",
+  "versionCounter": 1,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-11-02T11:45:25.603Z",
+      "createdAt": "2026-11-02T11:45:25.603Z",
+      "role": "workflow:owner",
+      "workflowId": "agentStarted01",
+      "projectId": "VNxAti41S1nLcIZK",
+      "project": {
+        "updatedAt": "2026-11-02T11:44:00.970Z",
+        "createdAt": "2026-11-02T11:44:00.970Z",
+        "id": "VNxAti41S1nLcIZK",
+        "name": "Unnamed Project",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "4f552da7-2066-44df-af3c-ba1ca5d82013"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

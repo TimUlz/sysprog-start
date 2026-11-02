@@ -16,6 +16,7 @@
 
 | Работа | Что сделано |
 |---|---|
+| [`agent`](agent/core/README.md) | агент-сторож v1: ядро на C (`core_get_info`, время работы системы), мозг на Python через ctypes, сообщение уходит в n8n, модель в Ollama объясняет его письмом |
 | [`labs/02-debugger`](labs/02-debugger/README.md) | программа на C по шагам в отладчике LLDB: переменные, массив по байтам, стек вызовов, машинный код |
 | [`labs/03-libraries`](labs/03-libraries/README.md) | библиотеки файла и процесса, загрузка libpcap в Python через ctypes |
 | [`labs/01-process-inside`](labs/01-process-inside/README.md) | своя программа в Мониторинге системы: PID, память, дескрипторы, библиотеки, сигнал SIGTERM |

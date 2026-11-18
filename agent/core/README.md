@@ -19,12 +19,14 @@ CORE_API в `core.h` отмечает функцию для экспорта: в
 ## Сборка библиотеки
 
 ```
-$ clang -Wall -Wextra -shared -fPIC -o libsentry_core.dylib core_info.c core_procs.c core_spawn.c
+$ clang -Wall -Wextra -shared -fPIC -o libsentry_core.dylib core_info.c core_procs.c core_spawn.c core_cpu.c core_threads.c
 $ nm -gU libsentry_core.dylib
-00000000000004f8 T _core_get_info
-000000000000060c T _core_list_procs
-0000000000000814 T _core_spawn
-00000000000008cc T _core_wait
+000000000000067c T _core_get_info
+0000000000000790 T _core_list_procs
+00000000000004f8 T _core_proc_cpu
+0000000000000ba4 T _core_proc_threads
+0000000000000998 T _core_spawn
+0000000000000a50 T _core_wait
 ```
 
 ## Список процессов (2.1)
@@ -81,3 +83,20 @@ host      MacBook-Air-Tim-2.local
 uptime_s  1233997
 sizeof    280
 ```
+
+## Процессорное время и потоки (2.3 и 2.4)
+
+Сборка из каталога agent/core на macOS:
+
+    clang -Wall -Wextra -o cpu_top cpu_top.c core_cpu.c core_spawn.c
+    clang -Wall -Wextra -pthread -o count_threads count_threads.c core_threads.c
+    ./cpu_top
+    ./count_threads
+
+core_proc_cpu получает из PROC_PIDTASKINFO пользовательское и системное время. На Apple Silicon тики Mach переводятся в микросекунды с учётом mach_timebase_info. На нагрузочном процессе за 1,0051 с получилось 94,9% одного ядра. Для PID 2147483646 получен ESRCH (3), для системного процесса PID 1 — EPERM (1).
+
+core_proc_threads читает поле pti_threadnum того же набора данных. В count_threads главный поток ждёт готовности четырёх рабочих и снимает показание, пока они заблокированы на условной переменной. Последний снимок сделан после pthread_join и завершения учёта потоков в ядре. На Mac получена последовательность 1 → 5 → 1.
+
+Проверка единиц на тех же данных даёт контрастный результат. Если принять тики Mach за наносекунды и пропустить коэффициент 125/3 этого Mac, вместо 94,9% получится около 2,3%.
+
+В отдельном опыте четыре потока прибавляли по единице миллион раз. Одна атомарная операция fetch_add дала 4 000 000. При раздельных атомарных чтении и записи два запуска дали 1 373 201 и 980 309. Два потока могут прочитать одно старое значение и записать одну и ту же сумму. Для счётчика операция чтения с изменением должна выполняться целиком под блокировкой или одной атомарной инструкцией.

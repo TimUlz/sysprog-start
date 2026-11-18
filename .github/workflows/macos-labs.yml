@@ -1,0 +1,63 @@
+name: Практические проверки macOS
+
+on: [push, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  experiments:
+    runs-on: macos-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Агент 2.3 и 2.4
+        working-directory: agent/core
+        run: |
+          clang -Wall -Wextra -Werror -shared -fPIC -o libsentry_core.dylib core_*.c
+          clang -Wall -Wextra -Werror -o cpu_top cpu_top.c core_cpu.c core_spawn.c
+          clang -Wall -Wextra -Werror -pthread -o count_threads count_threads.c core_threads.c
+          ./cpu_top
+          if ./cpu_top 2147483646; then exit 1; fi
+          ./count_threads | tee "$RUNNER_TEMP/threads.txt"
+          diff -u <(printf 'before: 1\nrunning: 5\njoined: 1\n') "$RUNNER_TEMP/threads.txt"
+          cd ../brain
+          python3 brain.py > "$RUNNER_TEMP/brain.json"
+          python3 - "$RUNNER_TEMP/brain.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          from brain import proc_cpu, proc_threads
+          result = json.loads(Path(sys.argv[1]).read_text())
+          assert result["child_threads"] == 5 and result["child_code"] == 3, result
+          for field, metric in (("cpu_top", "cpu"), ("most_threads", "threads")):
+              values = [p[metric] for p in result[field]]
+              assert len(values) == 3 and values == sorted(values, reverse=True), values
+          assert proc_cpu(2147483646) is None and proc_threads(2147483646) is None
+          print("Четыре рабочих потока и главный, оба рейтинга отсортированы.")
+          PY
+
+      - name: Исправления ЛР 9 под ASan и UBSan
+        working-directory: labs/09-crash
+        run: |
+          clang -g -O0 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-sanitize-recover=all -o fixed fixed.c
+          for mode in null overflow heap uaf; do ./fixed "$mode"; done
+          python3 ctypes_fixed.py
+
+      - name: Снимки в отчётах
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          for lab, expected in {1: 8, 2: 8, 3: 7, 6: 4, 7: 4, 8: 4, 9: 1}.items():
+              folder = next(Path("labs").glob(f"{lab:02}-*"))
+              report = (folder / "report.md").read_text()
+              paths = re.findall(r"!\[[^\]]*\]\((screenshots/[^)]+\.png)\)", report)
+              assert len(paths) == len(set(paths)) == expected, folder
+              for path in paths:
+                  assert (folder / path).read_bytes().startswith(b"\x89PNG\r\n\x1a\n"), path
+              print(f"ЛР {lab}: проверено ссылок на снимки — {expected}")
+          PY

@@ -4,6 +4,7 @@ import errno
 import json
 import os
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -29,6 +30,10 @@ class CoreProc(ctypes.Structure):
     ]
 
 
+class CoreCpu(ctypes.Structure):
+    _fields_ = [("user_us", ctypes.c_int64), ("kernel_us", ctypes.c_int64)]
+
+
 class CoreChild(ctypes.Structure):
     _fields_ = [
         ("pid", ctypes.c_int64),
@@ -45,6 +50,10 @@ core.core_spawn.argtypes = [ctypes.POINTER(ctypes.c_char_p), ctypes.POINTER(Core
 core.core_spawn.restype = ctypes.c_int
 core.core_wait.argtypes = [ctypes.POINTER(CoreChild), ctypes.c_int32, ctypes.POINTER(ctypes.c_int32)]
 core.core_wait.restype = ctypes.c_int
+core.core_proc_cpu.argtypes = [ctypes.c_int64, ctypes.POINTER(CoreCpu)]
+core.core_proc_cpu.restype = ctypes.c_int
+core.core_proc_threads.argtypes = [ctypes.c_int64, ctypes.POINTER(ctypes.c_int32)]
+core.core_proc_threads.restype = ctypes.c_int
 TOO_SMALL = 122 if sys.platform == "win32" else errno.ERANGE
 
 
@@ -79,6 +88,46 @@ def list_procs(room=256):
         if err != TOO_SMALL:
             raise OSError(err, error_text(err))
         room = count.value + 64
+
+
+def proc_cpu(pid):
+    cpu = CoreCpu()
+    if core.core_proc_cpu(pid, ctypes.byref(cpu)) == 0:
+        return cpu.user_us + cpu.kernel_us
+    return None
+
+
+def cpu_load(interval=1.0):
+    if interval <= 0:
+        raise ValueError("interval must be positive")
+    procs = list_procs()
+    before = {p["pid"]: (proc_cpu(p["pid"]), time.monotonic_ns()) for p in procs}
+    time.sleep(interval)
+    loads = []
+    for p in procs:
+        pid = p["pid"]
+        first, start = before[pid]
+        last = proc_cpu(pid)
+        elapsed = time.monotonic_ns() - start
+        if first is not None and last is not None and last >= first:
+            loads.append({"name": p["name"], "pid": pid, "cpu": round((last - first) * 100_000 / elapsed)})
+    return sorted(loads, key=lambda p: p["cpu"], reverse=True)
+
+
+def proc_threads(pid):
+    count = ctypes.c_int32()
+    if core.core_proc_threads(pid, ctypes.byref(count)) == 0:
+        return count.value
+    return None
+
+
+def most_threads(n=3):
+    found = []
+    for p in list_procs():
+        count = proc_threads(p["pid"])
+        if count is not None:
+            found.append({"name": p["name"], "pid": p["pid"], "threads": count})
+    return sorted(found, key=lambda p: p["threads"], reverse=True)[:max(n, 0)]
 
 
 def parents(procs, pid):
@@ -119,12 +168,18 @@ def send(message, url):
 
 
 if __name__ == "__main__":
-    child = spawn([sys.executable, "-c", "import time; time.sleep(1); raise SystemExit(3)"])
+    child = spawn([sys.executable, "-c", "import threading, time\n"
+                   "ts = [threading.Thread(target=time.sleep, args=(3,)) for _ in range(4)]\n"
+                   "for t in ts: t.start()\nfor t in ts: t.join()\nraise SystemExit(3)"])
     procs = list_procs()
     chain = parents(procs, child.pid)
+    top = cpu_load(1.0)[:3]
+    child_threads = proc_threads(child.pid)
+    thread_top = most_threads(3)
     code = wait(child, 5000)
     message = {"event": "agent_started", "os": sys.platform, **get_info(),
                "procs": len(procs), "child": child.pid, "child_code": code,
+               "cpu_top": top, "child_threads": child_threads, "most_threads": thread_top,
                "parents": [p["name"] for p in chain]}
     print(json.dumps(message, ensure_ascii=False, indent=2))
     if len(sys.argv) > 1:

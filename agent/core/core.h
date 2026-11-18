@@ -26,6 +26,11 @@ struct core_proc {
     char name[CORE_NAME_MAX];
 };
 
+struct core_cpu {
+    int64_t user_us;
+    int64_t kernel_us;
+};
+
 struct core_child {
     int64_t pid;
     int64_t handle;
@@ -33,6 +38,8 @@ struct core_child {
 
 CORE_API int core_get_info(struct core_info *out);
 CORE_API int core_list_procs(struct core_proc *out, int32_t max, int32_t *count);
+CORE_API int core_proc_cpu(int64_t pid, struct core_cpu *out);
+CORE_API int core_proc_threads(int64_t pid, int32_t *count);
 CORE_API int core_spawn(char *const argv[], struct core_child *out);
 CORE_API int core_wait(struct core_child *child, int32_t timeout_ms, int32_t *exit_code);
 

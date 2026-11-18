@@ -1,0 +1,23 @@
+name: Практическая № 5
+
+on:
+  push:
+    paths:
+      - 'practice/05-service-check/**'
+      - '.github/workflows/service-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  localhost:
+    runs-on: macos-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Проверка двух сервисов, тайм-аута ответа и HTTP 503
+        run: python3 practice/05-service-check/test_monitor.py

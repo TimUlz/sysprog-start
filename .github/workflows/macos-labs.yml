@@ -52,12 +52,20 @@ jobs:
           python3 - <<'PY'
           import re
           from pathlib import Path
-          for lab, expected in {1: 8, 2: 8, 3: 7, 6: 4, 7: 4, 8: 4, 9: 1}.items():
+          for lab, required in {1: 8, 2: 8, 3: 7, 6: 4, 7: 4, 8: 4, 9: 4}.items():
               folder = next(Path("labs").glob(f"{lab:02}-*"))
               report = (folder / "report.md").read_text()
               paths = re.findall(r"!\[[^\]]*\]\((screenshots/[^)]+\.png)\)", report)
-              assert len(paths) == len(set(paths)) == expected, folder
+              images = sorted((folder / "screenshots").glob("*.png"))
+              assert len(images) == required, folder
+              submitted = {str(p.relative_to(folder)) for p in images
+                           if b"sysprog-placeholder" not in p.read_bytes()}
+              assert len(paths) == len(set(paths)) and set(paths) == submitted, folder
+              if lab == 9:
+                  assert "screenshots/04_fixed.png" in submitted
+              else:
+                  assert len(submitted) == required, folder
               for path in paths:
                   assert (folder / path).read_bytes().startswith(b"\x89PNG\r\n\x1a\n"), path
-              print(f"ЛР {lab}: проверено ссылок на снимки — {expected}")
+              print(f"ЛР {lab}: проверено ссылок на снимки — {len(paths)} из {required}")
           PY
